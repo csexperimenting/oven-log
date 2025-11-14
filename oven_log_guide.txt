@@ -1,0 +1,405 @@
+OVEN LOG is an MS Access database that replaces the paper oven logs. The user is
+able to enter a TRAK ID, select an oven, modify its default temperature, select an
+application, modify its default bake time, modify the current date/time and TRAK
+quantity, and add the TRAK to the oven. A list of all TRAKs in ovens is displayed, along
+with their bake time remaining. The TRAK is removed by entering the TRAK ID (or
+selecting it from the list) and clicking the Remove button (or scanning the equivalent
+action barcode).
+Everyone must use the central version of the database. Do not make local copies.
+The barcode reader must be programmed to append a <Tab> autoterminator. The
+<Tab> character moves the text from the Notes field to the appropriate field.
+Oven Log is located at P:\Access\Oven Log\Oven Log.accdb
+The first time Oven Log is opened on a PC, a Security Warning may appear:
+•
+•
+•
+•
+•
+•
+•
+
+Select Options.
+Click Open the Trust Center in the lower, left corner of the dialog.
+Click Trusted Locations > Add new location.
+Type "P:\Access" in the Path field.
+Check "Subfolders of this location are also trusted."
+Click OK > OK > OK.
+Close and re-open Oven Log.
+
+Oven Log User Guide
+
+Page 1
+
+1.0 Table Structure ....................................................................................................... 3
+2.0 Main Form................................................................................................................ 4
+2.1 General Behavior of the Main Form ..................................................................... 5
+2.2 TRAK List .............................................................................................................. 5
+2.3 Oven List ............................................................................................................... 5
+2.4 Check Button ......................................................................................................... 5
+2.5 Add Button............................................................................................................. 6
+2.6 History Button ........................................................................................................ 6
+2.7 Remove Button ..................................................................................................... 6
+2.8 Reset Button ......................................................................................................... 6
+2.9 Barcode Button ..................................................................................................... 6
+2.10
+Oven On ............................................................................................................. 7
+2.11
+Tools Button ....................................................................................................... 7
+2.12
+Exit button .......................................................................................................... 7
+3.0 Barcode Form ......................................................................................................... 8
+3.1 Oven List ............................................................................................................... 9
+3.2 Application List ...................................................................................................... 9
+3.3 Time List ................................................................................................................ 9
+3.4 Make Barcode Sheet Button ................................................................................. 9
+4.0 Tools Form ............................................................................................................ 10
+4.1 Manufacturer ► Model Button............................................................................ 11
+4.2 Types Button ....................................................................................................... 11
+4.3 Locations Button ................................................................................................. 11
+4.4 Ovens Button ...................................................................................................... 11
+4.5 User ► Alias Button............................................................................................ 11
+4.6 Applications Button ............................................................................................. 11
+4.7 TRAKs for Testing Button ................................................................................... 11
+4.8 Standard Times Button ....................................................................................... 12
+4.9 View Entire Database Button.............................................................................. 12
+4.10
+Recent Activity Button ..................................................................................... 13
+4.11
+TRAKs In Ovens Button .................................................................................. 13
+
+Oven Log User Guide
+
+Page 2
+
+1.0
+
+Table Structure
+
+The Part and TRAK tables are populated from CIMA when a TRAK is scanned (or when
+a TRAK is manually entered).
+The Box table holds ovens, freezers, solder pots, refrigerators, or other such devices.
+The On table holds turn-on events for ovens without digital temperature displays.
+Each record of the Event table holds a pair of oven-in and oven-out information, such as
+the TRAK, time, application, quantity, bake time, temperature, and notes.
+
+Oven Log User Guide
+
+Page 3
+
+2.0
+
+Main Form
+
+Oven Log User Guide
+
+Page 4
+
+2.1
+
+General Behavior of the Main Form
+
+In Barcode Mode, all keystrokes falling on the form are intercepted. In Manual Mode,
+keystrokes are not intercepted but fall to whichever control has focus.
+Barcode Mode is the preferred mode. In Barcode Mode, the form directs keyboard (or
+barcode reader) inputs to their proper controls automatically. A TRAK goes to the TRAK
+box, an oven goes to the oven list, an application goes to the application list, a bake
+time goes to the bake time box, and everything else goes to the Note box without the
+user having to pre-select the proper control by tabbing or clicking.
+Unlock for manual entry puts the form in Manual Mode. Lock for barcode entry puts
+the form in Barcode Mode.
+2.2
+
+TRAK List
+
+On the left side of the form is the TRAK list. It is populated by scanning a TRAK ID
+barcode or by typing a TRAK ID manually in the text box above (and then pressing Tab
+or Enter). If a TRAK does not appear in the TRAK list, it means it is not an active work
+order TRAK or the TRAK is already in an oven. If the TRAK is already in an oven, it is
+selected in the oven list instead.
+Multiple TRAKs can be selected in the TRAK list for addition to an oven. In this batch
+mode, all TRAKs are assigned the same oven, temperate, start time, bake time,
+application, quantity, and note. Multiple TRAKs of the same work orders can be
+selected by scanning or clicking.
+2.3
+
+Oven List
+
+On the right side of the form is the Oven list. It shows all TRAKs in ovens, including the
+oven, its location, the part number and serial number of the TRAK, the quantity,
+temperature, badge number of the user who added the TRAK to the oven, the oven-in
+date and time, the application, the hours and minutes remaining on the bake time, and
+the notes entered when the TRAK was added. The time remaining may be refreshed by
+clicking Reset.
+One or many TRAKs may be selected in the oven list.
+2.4
+
+✓ Check Button
+
+The Check button selects or deselects all TRAKs in the TRAK list.
+
+Oven Log User Guide
+
+Page 5
+
+2.5
+
+Add Button
+
+The Add Button puts the selected TRAK(s) in the selected oven, at the entered
+temperature, at the specified start time, in the specified quantity, with the selected
+application, for the specified bake time, and with the entered note.
+At a minimum, a TRAK, oven, temperature, quantity, start time, and bake time are
+required to perform the Add action. The application and note are optional.
+2.6
+
+History Button
+
+With a TRAK or TRAKs selected in the TRAK list and/or oven list, clicking History will
+display all information about those TRAK's oven events.
+The intent of this control is to provide undo information in the event that a TRAK is
+accidentally removed from the oven list.
+2.7
+
+Remove Button
+
+With one or more TRAKs selected in the oven list, clicking Remove will remove the
+selected TRAKs from the oven list. If there is time remaining on the bake, the user is
+asked if they're sure they want to remove the TRAK(s) prematurely from the oven list.
+In cases where the oven timer is set to turn off overnight, no one would be around to
+remove the TRAK from the oven list at just the right moment. So there is an expectation
+that the actual bake times, as recorded by the database, will tend to exceed the nominal
+bake times and the corresponding physical bake times. Therefore, it's best to think of
+the database's so-called "actual" bake time as how long the record spent in the virtual
+oven list, rather than how long the physical module spent baking in a brick-and-mortar
+oven.
+2.8
+
+Reset Button
+
+The Reset button clears the TRAK list, deselects and updates the oven list, clears the
+other controls on the top of the Main form, and puts the form in Barcode Mode, restoring
+the default mode for keystroke interception.
+2.9
+
+Customize Button
+
+The Customize button opens a form allowing the user to select ovens, applications, and
+standard time barcodes to be imprinted on a sheet of paper to speed up the data-entry
+process.
+
+Oven Log User Guide
+
+Page 6
+
+2.10
+
+Oven On
+
+With an oven selected in the oven drop-down menu, the Oven On button logs the time
+displayed in the Start Time field as an oven turn-on event for the selected oven. This
+button only works for ovens without a digital temperature display, for only those ovens
+require logging of when the oven was turned on. Such ovens also bear a label stating
+the minimum oven warm-up time delay.
+Oven Log will not allow a TRAK to be added to an oven undergoing the warm-up
+process.
+2.11
+
+Tools Button
+
+The Tools button opens a form with controls to maintain ovens, applications, users, etc.
+2.12
+
+Exit button
+
+The Exit button closes Oven Log.
+
+Oven Log User Guide
+
+Page 7
+
+3.0
+
+Customize Form
+
+Oven Log User Guide
+
+Page 8
+
+3.1
+
+Oven List
+
+The oven list shows the type, manufacturer, model, tool number, location, temperature,
+and warm-up time, if any, of all ovens.
+3.2
+
+Application List
+
+The application list shows the name and default bake time, if any, of all applications.
+3.3
+
+Time List
+
+The time list shows the standard bake times.
+3.4
+
+Show Selection Button
+
+Show Selection selects those ovens previously associated with the current user. Only
+these ovens are visible in the main form. Users may only add/remove TRAKs to/from
+these ovens.
+3.5
+
+Save Selection Button
+
+Save Selection takes the ovens selected in the oven list above and associates them
+with the current user. After which, only those ovens are visible in the main form.
+3.6
+
+✓ Check Button
+
+The Check button selects or deselects all ovens in the oven list.
+3.7
+
+Barcode Sheet Button
+
+After selecting ovens, applications, and times, click Barcode Sheet to generate a
+customized printable report. Each page can hold up to eleven ovens, applications, and
+time and contains the four action barcode: Reset, Oven On, Add, and Remove.
+If the barcodes do not render properly, drag v100001_.ttf in \unc\Access\Oven Log to
+C:\WINDOWS\Fonts to install the font.
+
+Oven Log User Guide
+
+Page 9
+
+4.0
+
+Tools Form
+
+Oven Log User Guide
+
+Page 10
+
+4.1
+
+Manufacturer ► Model Button
+
+The manufacturer ► model button opens the manufacturer table and its indented model
+table for editing.
+4.2
+
+Models Button
+
+The models button allows the maintenance of oven, drybox, etc. models.
+4.3
+
+Types Button
+
+The type button opens the types table for editing box types: oven, freezer, refrigerator,
+etc.
+4.4
+
+Locations Button
+
+The location button allows the maintenance of the oven locations.
+4.5
+
+Ovens, Dryboxes, etc Button
+
+The button opens the ovens table for editing.
+4.6
+
+User ► Alias Button
+
+The user ► alias button opens the user table for editing and its indented alias table.
+Aliases are used when the user's Windows login mismatches their email address and is
+inherited from other applications that send email via SMTP.
+When the user's login is different from their email address, their email address (old
+login) should be in both tblUser.strLogin (yes, it is counter-intuitive to not have their
+login in a field called Login) and in tblAlias.strAlias, but their new login should be in
+tblAlias.strUserName. The email address tends to be their original login. The email
+address tends to be simple, such as first.last. Their new login tends to be more
+exotic, such as first.m.last or first.last2.
+If a user's login changes and they open Oven Log as themselves, a second record will
+be created in tblUser for the "new" user. The proper course of action here is to link the
+child records associated with the "new" user to the original user record, add an Alias
+record (with their new login in the strUserName field), and then delete the new user
+record. See code RelinkUser.
+4.7
+
+Applications Button
+
+The applications button allows the maintenance of the applications and their default
+bake times.
+4.8
+
+TRAKs for Testing Button
+
+Oven Log User Guide
+
+Page 11
+
+TRAKs for Testing displays a report with 63 TRAK ID barcodes for testing the interface
+of the application.
+4.9
+
+Standard Times Button
+
+The standard times button allows the edition and creation of the standard bake times
+that appear on the barcode form.
+4.10
+
+View Entire Database Button
+
+The view entire database button opens a query that shows all information about oven
+events.
+
+Oven Log User Guide
+
+Page 12
+
+4.11
+
+Recent Activity Button
+
+The recent activity button shows the same information as the view-entire-database
+button except limited to the past 24 hours.
+4.12
+
+TRAKs In Ovens Button
+
+The TRAKs in ovens button shows the same information as the view-entire-database
+button except limited to only those TRAKs shown in the oven list on the Main form.
+4.13
+
+MAC Address Table
+
+In the new version of the Oven Log, an Operator combo box was added. If the station is
+dedicated to an oven, the oven and temperature combo boxes are disabled and the
+operator combo box is enabled. If the station is not dedicated, the opposite is true.
+4.14
+
+What's my MAC?
+
+If you want the station to be dedicated to an oven, click here to get your MAC address.
+Copy/paste the address to the MAC Address table and specify the oven index, which is
+lngBox under the Ovens, Dryboxes, etc. button.
+Actually, as we determined, the thin clients all seem to have the same MAC address, so
+that approach didn't work. Now, to make something dedicated, it's a matter of the user
+having a value in the lngBox field of the user table.
+4.15
+
+Missing Badges
+
+This button queries CIMA for THOR labor charged during the last three months and
+determines which of these badges are missing from the Oven Log's local user table. If
+the termination date is 1/1/1901, this is an active employee, and their badge should be
+added under User ► Alias. If the physical person already exists, their old badge should
+be moved to the alias table and their new badge put in the user table.
+
+Oven Log User Guide
+
+Page 13
+
+
