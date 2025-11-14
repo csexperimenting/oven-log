@@ -60,6 +60,11 @@ interface HistoryEvent {
   notes?: string
 }
 
+interface ParsedBarcode {
+  type: 'action' | 'oven' | 'app' | 'time' | 'trak' | 'unknown'
+  value: string
+}
+
 function App() {
   const [trakId, setTrakId] = useState('')
   const [selectedBox, setSelectedBox] = useState<number | null>(null)
@@ -82,6 +87,10 @@ function App() {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [eventToRemove, setEventToRemove] = useState<EventInOven | null>(null)
   const [showOvenOnModal, setShowOvenOnModal] = useState(false)
+  
+  const [barcodeMode, setBarcodeMode] = useState(true)
+  const [barcodeBuffer, setBarcodeBuffer] = useState('')
+  const [barcodeHudMessage, setBarcodeHudMessage] = useState('')
 
   useEffect(() => {
     loadBoxes()
@@ -90,6 +99,215 @@ function App() {
     const interval = setInterval(loadEventsInOvens, 30000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (!barcodeMode) {
+      return
+    }
+
+    let commitTimer: number | null = null
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return
+      }
+
+      if (e.key === 'F5' || e.key === 'F12') {
+        return
+      }
+
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        if (barcodeBuffer.trim()) {
+          commitBarcodeBuffer(barcodeBuffer.trim())
+          setBarcodeBuffer('')
+        }
+        if (commitTimer) {
+          clearTimeout(commitTimer)
+          commitTimer = null
+        }
+        return
+      }
+
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        const newBuffer = barcodeBuffer + e.key
+        setBarcodeBuffer(newBuffer)
+        
+        const parsed = parseBarcodeToken(newBuffer, boxes, applications)
+        setBarcodeHudMessage(`Buffer: "${newBuffer}" → ${parsed.type.toUpperCase()}: ${parsed.value}`)
+
+        if (commitTimer) {
+          clearTimeout(commitTimer)
+        }
+        commitTimer = setTimeout(() => {
+          if (newBuffer.trim()) {
+            commitBarcodeBuffer(newBuffer.trim())
+            setBarcodeBuffer('')
+            setBarcodeHudMessage('')
+          }
+        }, 300)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true })
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, { capture: true })
+      if (commitTimer) {
+        clearTimeout(commitTimer)
+      }
+    }
+  }, [barcodeMode, barcodeBuffer, boxes, applications])
+
+  const parseBarcodeToken = (buffer: string, boxes: Box[], apps: Application[]): ParsedBarcode => {
+    const trimmed = buffer.trim().toUpperCase()
+    
+    const actionMatch = trimmed.match(/^ACT:(ADD|REMOVE|RESET|OVENON)$/i)
+    if (actionMatch) {
+      return { type: 'action', value: actionMatch[1].toUpperCase() }
+    }
+    
+    const ovenPrefixMatch = trimmed.match(/^OVEN:(.+)$/)
+    if (ovenPrefixMatch) {
+      return { type: 'oven', value: ovenPrefixMatch[1] }
+    }
+    
+    const appPrefixMatch = trimmed.match(/^APP:(.+)$/)
+    if (appPrefixMatch) {
+      return { type: 'app', value: appPrefixMatch[1] }
+    }
+    
+    const timePrefixMatch = trimmed.match(/^TIME:(\d{1,4})$/)
+    if (timePrefixMatch) {
+      return { type: 'time', value: timePrefixMatch[1] }
+    }
+    
+    const naturalOvenMatch = trimmed.match(/^OVEN-\d{3}$/)
+    if (naturalOvenMatch) {
+      const box = boxes.find(b => b.toolNumber.toUpperCase() === trimmed)
+      if (box) {
+        return { type: 'oven', value: box.toolNumber }
+      }
+    }
+    
+    const naturalTimeMatch = trimmed.match(/^\d{1,4}$/)
+    if (naturalTimeMatch) {
+      return { type: 'time', value: trimmed }
+    }
+    
+    const app = apps.find(a => a.name.toUpperCase() === trimmed)
+    if (app) {
+      return { type: 'app', value: app.name }
+    }
+    
+    return { type: 'trak', value: buffer.trim() }
+  }
+
+  const commitBarcodeBuffer = (buffer: string) => {
+    const parsed = parseBarcodeToken(buffer, boxes, applications)
+    
+    switch (parsed.type) {
+      case 'action':
+        handleBarcodeAction(parsed.value)
+        setBarcodeHudMessage(`Action: ${parsed.value}`)
+        break
+      case 'oven':
+        const box = boxes.find(b => b.toolNumber.toUpperCase() === parsed.value.toUpperCase())
+        if (box) {
+          setSelectedBox(box.id)
+          setTemperature(box.defaultTemperature)
+          setBarcodeHudMessage(`Selected Oven: ${box.toolNumber}`)
+        } else {
+          setBarcodeHudMessage(`Oven not found: ${parsed.value}`)
+        }
+        break
+      case 'app':
+        const app = applications.find(a => a.name.toUpperCase() === parsed.value.toUpperCase())
+        if (app) {
+          setSelectedApplication(app.id)
+          if (app.defaultBakeTimeMinutes) {
+            setBakeTime(app.defaultBakeTimeMinutes)
+          }
+          setBarcodeHudMessage(`Selected Application: ${app.name}`)
+        } else {
+          setBarcodeHudMessage(`Application not found: ${parsed.value}`)
+        }
+        break
+      case 'time':
+        const timeValue = parseInt(parsed.value, 10)
+        if (!isNaN(timeValue) && timeValue > 0) {
+          setBakeTime(timeValue)
+          setBarcodeHudMessage(`Set Bake Time: ${timeValue} minutes`)
+        }
+        break
+      case 'trak':
+        const existing = trakList.find(t => t.trakId === parsed.value)
+        if (!existing) {
+          setTrakList([...trakList, {
+            trakId: parsed.value,
+            partNumber: `PART-${parsed.value}`,
+            selected: true
+          }])
+          setBarcodeHudMessage(`Added TRAK: ${parsed.value}`)
+        } else {
+          setTrakList(trakList.map(t => 
+            t.trakId === parsed.value ? { ...t, selected: !t.selected } : t
+          ))
+          setBarcodeHudMessage(`Toggled TRAK: ${parsed.value}`)
+        }
+        break
+      default:
+        setBarcodeHudMessage(`Unknown: ${buffer}`)
+    }
+    
+    setTimeout(() => setBarcodeHudMessage(''), 3000)
+  }
+
+  const handleBarcodeAction = (action: string) => {
+    switch (action) {
+      case 'RESET':
+        handleReset()
+        break
+      case 'ADD':
+        const selectedTraks = trakList.filter(t => t.selected)
+        if (selectedTraks.length === 0) {
+          setError('No TRAKs selected. Add TRAKs to the list first.')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        if (!selectedBox) {
+          setError('No oven selected. Select an oven first.')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        handleBatchAddToOven()
+        break
+      case 'REMOVE':
+        const selectedEvents = eventsInOvens.filter(e => selectedEventsForHistory.includes(e.id))
+        if (selectedEvents.length === 0) {
+          setError('No TRAKs selected in oven list. Select TRAKs to remove first.')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        selectedEvents.forEach(event => handleRemoveClick(event))
+        break
+      case 'OVENON':
+        if (!selectedBox) {
+          setError('No oven selected. Select an oven first.')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        const box = boxes.find(b => b.id === selectedBox)
+        if (!box?.warmUpTimeMinutes) {
+          setError('This oven does not require warm-up tracking.')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        setShowOvenOnModal(true)
+        break
+    }
+  }
 
   const loadBoxes = async () => {
     try {
@@ -349,7 +567,20 @@ function App() {
     <div className="app">
       <header className="header">
         <h1>Oven Log</h1>
+        <button 
+          className={`btn ${barcodeMode ? 'btn-warning' : 'btn-success'}`}
+          onClick={() => setBarcodeMode(!barcodeMode)}
+          title={barcodeMode ? 'Click to unlock for manual entry' : 'Click to lock for barcode entry'}
+        >
+          {barcodeMode ? '🔒 Barcode Mode (Locked)' : '🔓 Manual Mode (Unlocked)'}
+        </button>
       </header>
+
+      {barcodeMode && barcodeHudMessage && (
+        <div className="barcode-hud">
+          {barcodeHudMessage}
+        </div>
+      )}
 
       <div className="container">
         {message && <div className="message success">{message}</div>}
