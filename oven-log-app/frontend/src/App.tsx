@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
-const API_BASE = 'http://localhost:5000/api'
-
-interface Trak {
-  id: number
-  trakId: string
-  partNumber: string
-  serialNumber?: string
-  workOrder?: string
-  quantity: number
-  isActive: boolean
-}
+const API_BASE = '/api'
 
 interface Box {
   id: number
@@ -60,7 +50,6 @@ function App() {
   const [boxes, setBoxes] = useState<Box[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [eventsInOvens, setEventsInOvens] = useState<EventInOven[]>([])
-  const [selectedEvents, setSelectedEvents] = useState<number[]>([])
   
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
