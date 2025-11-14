@@ -251,7 +251,7 @@ function App() {
     try {
       const allHistory: HistoryEvent[] = []
       for (const trakId of selectedTrakIds) {
-        const response = await fetch(`${API_BASE}/events/trak/${trakId}`)
+        const response = await fetch(`${API_BASE}/traks/${trakId}/history`)
         if (response.ok) {
           const data = await response.json()
           allHistory.push(...data)
