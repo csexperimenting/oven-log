@@ -280,7 +280,15 @@ function App() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to log oven turn-on')
+        const errorText = await response.text()
+        let errorMessage = 'Failed to log oven turn-on'
+        try {
+          const errorJson = JSON.parse(errorText)
+          errorMessage = errorJson.message || errorJson.error || errorText
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
       }
 
       setMessage('Oven turn-on logged successfully')
@@ -288,6 +296,7 @@ function App() {
       setTimeout(() => setMessage(''), 3000)
     } catch (err: any) {
       setError(err.message || 'Failed to log oven turn-on')
+      setShowOvenOnModal(false)
       setTimeout(() => setError(''), 5000)
     }
   }
@@ -465,7 +474,12 @@ function App() {
               <button className="btn btn-secondary" onClick={handleShowHistory}>
                 History
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowOvenOnModal(true)}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowOvenOnModal(true)}
+                disabled={!selectedBox || !boxes.find(b => b.id === selectedBox)?.warmUpTimeMinutes}
+                title={!selectedBox ? 'Select an oven first' : !boxes.find(b => b.id === selectedBox)?.warmUpTimeMinutes ? 'This oven does not require warm-up tracking' : 'Log oven turn-on'}
+              >
                 Oven On
               </button>
             </div>
