@@ -38,6 +38,28 @@ interface EventInOven {
   notes?: string
 }
 
+interface TrakListItem {
+  trakId: string
+  partNumber: string
+  selected: boolean
+}
+
+interface HistoryEvent {
+  id: number
+  trakId: string
+  partNumber: string
+  boxName: string
+  location: string
+  temperature: number
+  applicationName?: string
+  quantity: number
+  ovenInTime: string
+  ovenOutTime?: string
+  plannedBakeTimeMinutes: number
+  actualBakeTimeMinutes?: number
+  notes?: string
+}
+
 function App() {
   const [trakId, setTrakId] = useState('')
   const [selectedBox, setSelectedBox] = useState<number | null>(null)
@@ -50,9 +72,16 @@ function App() {
   const [boxes, setBoxes] = useState<Box[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [eventsInOvens, setEventsInOvens] = useState<EventInOven[]>([])
+  const [trakList, setTrakList] = useState<TrakListItem[]>([])
+  const [selectedEventsForHistory, setSelectedEventsForHistory] = useState<number[]>([])
   
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([])
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [eventToRemove, setEventToRemove] = useState<EventInOven | null>(null)
+  const [showOvenOnModal, setShowOvenOnModal] = useState(false)
 
   useEffect(() => {
     loadBoxes()
@@ -92,56 +121,98 @@ function App() {
     }
   }
 
-  const handleAddToOven = async () => {
-    if (!trakId || !selectedBox) {
-      setError('TRAK ID and Oven are required')
+  const handleTrakIdSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      if (trakId.trim()) {
+        const existing = trakList.find(t => t.trakId === trakId)
+        if (!existing) {
+          setTrakList([...trakList, {
+            trakId: trakId.trim(),
+            partNumber: `PART-${trakId.trim()}`,
+            selected: true
+          }])
+        } else {
+          setTrakList(trakList.map(t => 
+            t.trakId === trakId ? { ...t, selected: !t.selected } : t
+          ))
+        }
+        setTrakId('')
+      }
+    }
+  }
+
+  const toggleTrakSelection = (trakId: string) => {
+    setTrakList(trakList.map(t => 
+      t.trakId === trakId ? { ...t, selected: !t.selected } : t
+    ))
+  }
+
+  const toggleAllTraks = () => {
+    const allSelected = trakList.every(t => t.selected)
+    setTrakList(trakList.map(t => ({ ...t, selected: !allSelected })))
+  }
+
+  const handleBatchAddToOven = async () => {
+    const selectedTraks = trakList.filter(t => t.selected)
+    
+    if (selectedTraks.length === 0) {
+      setError('Please select at least one TRAK')
+      return
+    }
+    
+    if (!selectedBox) {
+      setError('Please select an oven')
       return
     }
 
     try {
-      const response = await fetch(`${API_BASE}/traks/${trakId}`)
-      if (!response.ok) {
-        const createResponse = await fetch(`${API_BASE}/traks`, {
+      for (const trak of selectedTraks) {
+        const response = await fetch(`${API_BASE}/traks/${trak.trakId}`)
+        if (!response.ok) {
+          await fetch(`${API_BASE}/traks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trakId: trak.trakId,
+              partNumber: trak.partNumber,
+              quantity
+            })
+          })
+        }
+
+        await fetch(`${API_BASE}/events`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            trakId,
-            partNumber: `PART-${trakId}`,
-            quantity
+            trakId: trak.trakId,
+            boxId: selectedBox,
+            applicationId: selectedApplication,
+            temperature,
+            quantity,
+            plannedBakeTimeMinutes: bakeTime,
+            notes
           })
         })
-        if (!createResponse.ok) {
-          throw new Error('Failed to create TRAK')
-        }
       }
 
-      const eventResponse = await fetch(`${API_BASE}/events`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          trakId,
-          boxId: selectedBox,
-          applicationId: selectedApplication,
-          temperature,
-          quantity,
-          plannedBakeTimeMinutes: bakeTime,
-          notes
-        })
-      })
-
-      if (!eventResponse.ok) {
-        const errorData = await eventResponse.json()
-        throw new Error(errorData.title || 'Failed to add TRAK to oven')
-      }
-
-      setMessage('TRAK added to oven successfully')
-      setTrakId('')
+      setMessage(`${selectedTraks.length} TRAK(s) added to oven successfully`)
+      setTrakList(trakList.filter(t => !t.selected))
       setNotes('')
       loadEventsInOvens()
       setTimeout(() => setMessage(''), 3000)
     } catch (err: any) {
       setError(err.message)
       setTimeout(() => setError(''), 5000)
+    }
+  }
+
+  const handleRemoveClick = (event: EventInOven) => {
+    if (event.timeRemainingMinutes && event.timeRemainingMinutes > 0) {
+      setEventToRemove(event)
+      setShowRemoveConfirm(true)
+    } else {
+      handleRemoveFromOven(event.id)
     }
   }
 
@@ -156,12 +227,82 @@ function App() {
       }
 
       setMessage('TRAK removed from oven successfully')
+      setShowRemoveConfirm(false)
+      setEventToRemove(null)
       loadEventsInOvens()
       setTimeout(() => setMessage(''), 3000)
     } catch (err: any) {
       setError(err.message)
       setTimeout(() => setError(''), 5000)
     }
+  }
+
+  const handleShowHistory = async () => {
+    const selectedTrakIds = [
+      ...trakList.filter(t => t.selected).map(t => t.trakId),
+      ...eventsInOvens.filter(e => selectedEventsForHistory.includes(e.id)).map(e => e.trakId)
+    ]
+
+    if (selectedTrakIds.length === 0) {
+      setError('Please select at least one TRAK')
+      return
+    }
+
+    try {
+      const allHistory: HistoryEvent[] = []
+      for (const trakId of selectedTrakIds) {
+        const response = await fetch(`${API_BASE}/events/trak/${trakId}`)
+        if (response.ok) {
+          const data = await response.json()
+          allHistory.push(...data)
+        }
+      }
+      setHistoryEvents(allHistory)
+      setShowHistoryModal(true)
+    } catch (err) {
+      setError('Failed to load history')
+    }
+  }
+
+  const handleOvenOn = async () => {
+    if (!selectedBox) {
+      setError('Please select an oven')
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/boxes/${selectedBox}/turn-on`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          turnOnTime: new Date().toISOString()
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to log oven turn-on')
+      }
+
+      setMessage('Oven turn-on logged successfully')
+      setShowOvenOnModal(false)
+      setTimeout(() => setMessage(''), 3000)
+    } catch (err: any) {
+      setError(err.message || 'Failed to log oven turn-on')
+      setTimeout(() => setError(''), 5000)
+    }
+  }
+
+  const handleReset = () => {
+    setTrakId('')
+    setTrakList([])
+    setSelectedBox(null)
+    setSelectedApplication(null)
+    setTemperature(150)
+    setQuantity(1)
+    setBakeTime(60)
+    setNotes('')
+    setSelectedEventsForHistory([])
+    loadEventsInOvens()
   }
 
   const handleBoxChange = (boxId: number) => {
@@ -190,6 +331,11 @@ function App() {
     return `${hours}h ${mins}m`
   }
 
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleString()
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -210,9 +356,38 @@ function App() {
                 type="text"
                 value={trakId}
                 onChange={(e) => setTrakId(e.target.value)}
-                placeholder="Enter or scan TRAK ID"
+                onKeyDown={handleTrakIdSubmit}
+                placeholder="Enter or scan TRAK ID (press Enter)"
               />
             </div>
+
+            {trakList.length > 0 && (
+              <div className="trak-list">
+                <div className="trak-list-header">
+                  <h3>TRAK List</h3>
+                  <button className="btn btn-small" onClick={toggleAllTraks}>
+                    ✓ Check All
+                  </button>
+                </div>
+                <div className="trak-list-items">
+                  {trakList.map(trak => (
+                    <div 
+                      key={trak.trakId} 
+                      className={`trak-item ${trak.selected ? 'selected' : ''}`}
+                      onClick={() => toggleTrakSelection(trak.trakId)}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={trak.selected}
+                        onChange={() => {}}
+                      />
+                      <span>{trak.trakId}</span>
+                      <span className="part-number">{trak.partNumber}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label>Oven:</label>
@@ -280,21 +455,20 @@ function App() {
               />
             </div>
 
-            <button className="btn btn-primary" onClick={handleAddToOven}>
-              Add to Oven
-            </button>
-
-            <button className="btn btn-secondary" onClick={() => {
-              setTrakId('')
-              setSelectedBox(null)
-              setSelectedApplication(null)
-              setTemperature(150)
-              setQuantity(1)
-              setBakeTime(60)
-              setNotes('')
-            }}>
-              Reset
-            </button>
+            <div className="button-group">
+              <button className="btn btn-primary" onClick={handleBatchAddToOven}>
+                Add to Oven
+              </button>
+              <button className="btn btn-secondary" onClick={handleReset}>
+                Reset
+              </button>
+              <button className="btn btn-secondary" onClick={handleShowHistory}>
+                History
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowOvenOnModal(true)}>
+                Oven On
+              </button>
+            </div>
           </div>
 
           <div className="right-panel">
@@ -304,6 +478,7 @@ function App() {
               <table>
                 <thead>
                   <tr>
+                    <th>Select</th>
                     <th>TRAK ID</th>
                     <th>Part Number</th>
                     <th>Oven</th>
@@ -319,11 +494,24 @@ function App() {
                 <tbody>
                   {eventsInOvens.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center' }}>No TRAKs in ovens</td>
+                      <td colSpan={11} style={{ textAlign: 'center' }}>No TRAKs in ovens</td>
                     </tr>
                   ) : (
                     eventsInOvens.map(event => (
                       <tr key={event.id}>
+                        <td>
+                          <input 
+                            type="checkbox"
+                            checked={selectedEventsForHistory.includes(event.id)}
+                            onChange={() => {
+                              if (selectedEventsForHistory.includes(event.id)) {
+                                setSelectedEventsForHistory(selectedEventsForHistory.filter(id => id !== event.id))
+                              } else {
+                                setSelectedEventsForHistory([...selectedEventsForHistory, event.id])
+                              }
+                            }}
+                          />
+                        </td>
                         <td>{event.trakId}</td>
                         <td>{event.partNumber}</td>
                         <td>{event.boxName}</td>
@@ -336,7 +524,7 @@ function App() {
                         <td>
                           <button
                             className="btn btn-small btn-danger"
-                            onClick={() => handleRemoveFromOven(event.id)}
+                            onClick={() => handleRemoveClick(event)}
                           >
                             Remove
                           </button>
@@ -350,6 +538,108 @@ function App() {
           </div>
         </div>
       </div>
+
+      {showHistoryModal && (
+        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>TRAK History</h2>
+              <button className="close-btn" onClick={() => setShowHistoryModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {historyEvents.length === 0 ? (
+                <p>No history found for selected TRAKs</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>TRAK ID</th>
+                      <th>Part Number</th>
+                      <th>Oven</th>
+                      <th>Location</th>
+                      <th>Temp</th>
+                      <th>App</th>
+                      <th>Qty</th>
+                      <th>In Time</th>
+                      <th>Out Time</th>
+                      <th>Planned (min)</th>
+                      <th>Actual (min)</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyEvents.map((event, idx) => (
+                      <tr key={idx}>
+                        <td>{event.trakId}</td>
+                        <td>{event.partNumber}</td>
+                        <td>{event.boxName}</td>
+                        <td>{event.location}</td>
+                        <td>{event.temperature}</td>
+                        <td>{event.applicationName || '-'}</td>
+                        <td>{event.quantity}</td>
+                        <td>{formatDateTime(event.ovenInTime)}</td>
+                        <td>{event.ovenOutTime ? formatDateTime(event.ovenOutTime) : 'In Oven'}</td>
+                        <td>{event.plannedBakeTimeMinutes}</td>
+                        <td>{event.actualBakeTimeMinutes || '-'}</td>
+                        <td>{event.notes || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRemoveConfirm && eventToRemove && (
+        <div className="modal-overlay" onClick={() => setShowRemoveConfirm(false)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Removal</h2>
+            </div>
+            <div className="modal-body">
+              <p>TRAK <strong>{eventToRemove.trakId}</strong> still has <strong>{formatTimeRemaining(eventToRemove.timeRemainingMinutes)}</strong> remaining.</p>
+              <p>Are you sure you want to remove it from the oven prematurely?</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowRemoveConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-danger" onClick={() => handleRemoveFromOven(eventToRemove.id)}>
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showOvenOnModal && (
+        <div className="modal-overlay" onClick={() => setShowOvenOnModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Log Oven Turn-On</h2>
+              <button className="close-btn" onClick={() => setShowOvenOnModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Select an oven and click "Log Turn-On" to record when the oven was turned on.</p>
+              <p>This is used for ovens without digital temperature displays that require a warm-up period.</p>
+              <div className="form-group">
+                <label>Selected Oven:</label>
+                <p><strong>{selectedBox ? boxes.find(b => b.id === selectedBox)?.toolNumber : 'None'}</strong></p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowOvenOnModal(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleOvenOn} disabled={!selectedBox}>
+                Log Turn-On
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

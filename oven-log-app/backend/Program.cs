@@ -8,7 +8,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<OvenLogContext>(options =>
-    options.UseInMemoryDatabase("OvenLogDb"));
+    options.UseSqlite("Data Source=ovenlog.db"));
 
 builder.Services.AddCors(options =>
 {
@@ -25,6 +25,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<OvenLogContext>();
+    
+    context.Database.EnsureCreated();
+    
     SeedData(context);
 }
 
