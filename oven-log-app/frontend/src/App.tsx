@@ -65,6 +65,10 @@ interface HistoryEvent {
 }
 
 function App() {
+  const [userBadge, setUserBadge] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loginBadgeInput, setLoginBadgeInput] = useState('')
+  
   const [trakId, setTrakId] = useState('')
   const [selectedBox, setSelectedBox] = useState<number | null>(null)
   const [selectedApplication, setSelectedApplication] = useState<number | null>(null)
@@ -89,18 +93,57 @@ function App() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    loadBoxes()
-    loadApplications()
-    loadEventsInOvens()
-    const interval = setInterval(loadEventsInOvens, 30000)
-    return () => clearInterval(interval)
+    const storedBadge = localStorage.getItem('userBadge')
+    if (storedBadge) {
+      setUserBadge(storedBadge)
+      setIsLoggedIn(true)
+    }
   }, [])
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      loadBoxes()
+      loadApplications()
+      loadEventsInOvens()
+      const interval = setInterval(loadEventsInOvens, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [isLoggedIn])
 
   useEffect(() => {
     const now = new Date()
     const formatted = now.toISOString().slice(0, 16)
     setStartTime(formatted)
   }, [])
+
+  const handleLogin = () => {
+    if (!loginBadgeInput.trim()) {
+      setError('Please enter a badge ID')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+    
+    localStorage.setItem('userBadge', loginBadgeInput.trim())
+    setUserBadge(loginBadgeInput.trim())
+    setIsLoggedIn(true)
+    setLoginBadgeInput('')
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('userBadge')
+    setUserBadge(null)
+    setIsLoggedIn(false)
+    setTrakId('')
+    setSelectedBox(null)
+    setSelectedApplication(null)
+    setTemperature(150)
+    setQuantity(1)
+    setBakeTime(60)
+    setNotes('')
+    setAvailableTraks([])
+    setSelectedTraks([])
+    setEventsInOvens([])
+  }
 
   const loadBoxes = async () => {
     try {
@@ -371,20 +414,56 @@ function App() {
     return date.toLocaleString()
   }
 
+  if (!isLoggedIn) {
+    return (
+      <div className="app">
+        <div className="login-container">
+          <div className="login-box">
+            <h1>Oven Log</h1>
+            <h2>User Login</h2>
+            {error && <div className="message error">{error}</div>}
+            <div className="form-group">
+              <label>Badge ID:</label>
+              <input
+                type="text"
+                value={loginBadgeInput}
+                onChange={(e) => setLoginBadgeInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
+                placeholder="Enter your badge ID"
+                autoFocus
+              />
+            </div>
+            <button className="btn btn-primary" onClick={handleLogin}>
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <header className="header">
         <h1>Oven Log</h1>
-        <div className="mode-toggle">
-          <button 
-            className={`btn ${barcodeMode ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setBarcodeMode(!barcodeMode)}
-          >
-            {barcodeMode ? 'BARCODE MODE' : 'MANUAL MODE'}
-          </button>
-          <span className="mode-hint">
-            {barcodeMode ? 'Lock for barcode entry' : 'Unlock for manual entry'}
-          </span>
+        <div className="header-right">
+          <div className="user-info">
+            <span className="user-badge">User: {userBadge}</span>
+            <button className="btn btn-small btn-secondary" onClick={handleLogout}>
+              Sign Out
+            </button>
+          </div>
+          <div className="mode-toggle">
+            <button 
+              className={`btn ${barcodeMode ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setBarcodeMode(!barcodeMode)}
+            >
+              {barcodeMode ? 'BARCODE MODE' : 'MANUAL MODE'}
+            </button>
+            <span className="mode-hint">
+              {barcodeMode ? 'Lock for barcode entry' : 'Unlock for manual entry'}
+            </span>
+          </div>
         </div>
       </header>
 
