@@ -68,6 +68,7 @@ function App() {
   const [userBadge, setUserBadge] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loginBadgeInput, setLoginBadgeInput] = useState('')
+  const [activeTab, setActiveTab] = useState<'main' | 'customize'>('main')
   
   const [trakId, setTrakId] = useState('')
   const [selectedBox, setSelectedBox] = useState<number | null>(null)
@@ -88,6 +89,9 @@ function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [historyData, setHistoryData] = useState<HistoryEvent[]>([])
   const [historyTrakId, setHistoryTrakId] = useState('')
+  
+  const [selectedOvens, setSelectedOvens] = useState<number[]>([])
+  const [showBarcodeSheet, setShowBarcodeSheet] = useState(false)
   
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -414,6 +418,47 @@ function App() {
     return date.toLocaleString()
   }
 
+  const toggleOvenSelection = (boxId: number) => {
+    if (selectedOvens.includes(boxId)) {
+      setSelectedOvens(selectedOvens.filter(id => id !== boxId))
+    } else {
+      setSelectedOvens([...selectedOvens, boxId])
+    }
+  }
+
+  const handleCheckAllOvens = () => {
+    if (selectedOvens.length === boxes.length) {
+      setSelectedOvens([])
+    } else {
+      setSelectedOvens(boxes.map(b => b.id))
+    }
+  }
+
+  const handleShowSelection = () => {
+    if (!userBadge) return
+    const storageKey = `ovenSelection_${userBadge}`
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      const savedIds = JSON.parse(saved)
+      setSelectedOvens(savedIds)
+      setMessage('Loaded your saved oven selection')
+      setTimeout(() => setMessage(''), 3000)
+    } else {
+      setMessage('No saved selection found')
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const handleSaveSelection = () => {
+    if (!userBadge) return
+    const storageKey = `ovenSelection_${userBadge}`
+    localStorage.setItem(storageKey, JSON.stringify(selectedOvens))
+    setMessage(`Saved ${selectedOvens.length} oven(s) to your selection (stored locally)`)
+    setTimeout(() => setMessage(''), 3000)
+  }
+
+  const standardTimes = [3, 10, 15, 30, 60, 90, 120, 180, 240, 300]
+
   if (!isLoggedIn) {
     return (
       <div className="app">
@@ -467,12 +512,28 @@ function App() {
         </div>
       </header>
 
+      <div className="tabs">
+        <button 
+          className={`tab ${activeTab === 'main' ? 'active' : ''}`}
+          onClick={() => setActiveTab('main')}
+        >
+          Main
+        </button>
+        <button 
+          className={`tab ${activeTab === 'customize' ? 'active' : ''}`}
+          onClick={() => setActiveTab('customize')}
+        >
+          Customize
+        </button>
+      </div>
+
       <div className="container">
         {message && <div className="message success">{message}</div>}
         {error && <div className="message error">{error}</div>}
 
-        <div className="main-content">
-          <div className="left-panel">
+        {activeTab === 'main' ? (
+          <div className="main-content">
+            <div className="left-panel">
             <div className="trak-input-section">
               <h2>Add TRAK to Oven</h2>
               
@@ -664,7 +725,142 @@ function App() {
             </div>
           </div>
         </div>
+        ) : (
+          <div className="customize-content">
+            <div className="customize-toolbar">
+            <button className="btn btn-secondary" onClick={() => setActiveTab('main')}>
+              ◄ Go Back
+            </button>
+            <button className="btn btn-secondary" onClick={() => setShowBarcodeSheet(true)}>
+              Barcode Sheet
+            </button>
+            <button className="btn btn-secondary" onClick={handleShowSelection}>
+              Show Selection
+            </button>
+            <button className="btn btn-primary" onClick={handleSaveSelection}>
+              Save Selection
+            </button>
+            <button className="btn btn-secondary" onClick={handleCheckAllOvens}>
+              ✓ Check All
+            </button>
+          </div>
+
+          <div className="customize-main">
+            <div className="customize-left">
+              <h2>Ovens</h2>
+              <div className="ovens-table-container">
+                <table className="ovens-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Type</th>
+                      <th>Manufacturer</th>
+                      <th>Model</th>
+                      <th>Tool Number</th>
+                      <th>Location</th>
+                      <th>Temp (°C)</th>
+                      <th>Warm-up (min)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boxes.map(box => (
+                      <tr 
+                        key={box.id}
+                        className={selectedOvens.includes(box.id) ? 'selected' : ''}
+                        onClick={() => toggleOvenSelection(box.id)}
+                      >
+                        <td>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedOvens.includes(box.id)}
+                            onChange={() => {}}
+                          />
+                        </td>
+                        <td>{box.type}</td>
+                        <td>{box.manufacturer}</td>
+                        <td>{box.model}</td>
+                        <td>{box.toolNumber}</td>
+                        <td>{box.location}</td>
+                        <td>{box.defaultTemperature}</td>
+                        <td>{box.warmUpTimeMinutes || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="customize-right">
+              <div className="customize-panel">
+                <h3>Applications</h3>
+                <div className="list-container">
+                  {applications.map(app => (
+                    <div key={app.id} className="list-item">
+                      {app.name} - {app.defaultBakeTimeMinutes || 0} min
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="customize-panel">
+                <h3>Standard Times</h3>
+                <div className="list-container">
+                  {standardTimes.map(time => (
+                    <div key={time} className="list-item">
+                      {time < 60 ? `${time} min` : `${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')} hr`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
       </div>
+
+      {showBarcodeSheet && (
+        <div className="modal-overlay" onClick={() => setShowBarcodeSheet(false)}>
+          <div className="modal-content barcode-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Barcode Sheet</h2>
+              <button className="btn btn-small" onClick={() => setShowBarcodeSheet(false)}>
+                Close
+              </button>
+              <button className="btn btn-primary btn-small" onClick={() => window.print()}>
+                Print
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="barcode-sheet-content">
+                <h3>Selected Ovens ({selectedOvens.length})</h3>
+                {selectedOvens.length === 0 ? (
+                  <p>No ovens selected. Select ovens in the Customize tab to generate barcodes.</p>
+                ) : (
+                  <div className="barcode-grid">
+                    {selectedOvens.map(ovenId => {
+                      const box = boxes.find(b => b.id === ovenId)
+                      if (!box) return null
+                      return (
+                        <div key={box.id} className="barcode-item">
+                          <div className="barcode-label">
+                            <strong>{box.toolNumber}</strong>
+                            <div>{box.type} - {box.manufacturer}</div>
+                            <div>{box.location}</div>
+                            <div className="barcode-placeholder">
+                              |||||||||||||||||||||||
+                            </div>
+                            <div className="barcode-text">{box.toolNumber}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showHistory && (
         <div className="modal-overlay" onClick={() => setShowHistory(false)}>

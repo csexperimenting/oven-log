@@ -371,8 +371,239 @@ tbody tr:hover {
   margin-top: 0;
 }
 
+.tabs {
+  display: flex;
+  background-color: #34495e;
+  border-bottom: 3px solid #2c3e50;
+  padding: 0 2rem;
+}
+
+.tab {
+  padding: 1rem 2rem;
+  background: none;
+  border: none;
+  color: #ecf0f1;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -3px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tab.active {
+  color: white;
+  border-bottom-color: #3498db;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.customize-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 2rem;
+}
+
+.customize-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #ecf0f1;
+  flex-wrap: wrap;
+}
+
+.customize-main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+}
+
+.customize-left {
+  overflow-x: auto;
+}
+
+.customize-left h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.ovens-table-container {
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.ovens-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0;
+}
+
+.ovens-table thead {
+  background-color: #34495e;
+  color: white;
+  position: sticky;
+  top: 0;
+}
+
+.ovens-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.ovens-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #ecf0f1;
+  font-size: 0.9rem;
+}
+
+.ovens-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.ovens-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.ovens-table tbody tr.selected {
+  background-color: #e3f2fd;
+}
+
+.ovens-table input[type="checkbox"] {
+  cursor: pointer;
+  width: auto;
+}
+
+.customize-right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.customize-panel {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.customize-panel h3 {
+  margin: 0 0 1rem 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.list-container {
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.list-item {
+  padding: 0.75rem;
+  border-bottom: 1px solid #ecf0f1;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item:hover {
+  background-color: #f8f9fa;
+}
+
+.barcode-sheet {
+  max-width: 95%;
+  max-height: 95%;
+}
+
+.barcode-sheet-content {
+  padding: 1rem;
+}
+
+.barcode-sheet-content h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.barcode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.barcode-item {
+  border: 2px solid #2c3e50;
+  border-radius: 4px;
+  padding: 1rem;
+  background-color: white;
+}
+
+.barcode-label {
+  text-align: center;
+}
+
+.barcode-label strong {
+  display: block;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.barcode-label div {
+  font-size: 0.9rem;
+  color: #34495e;
+  margin-bottom: 0.25rem;
+}
+
+.barcode-placeholder {
+  font-family: 'Courier New', monospace;
+  font-size: 1.5rem;
+  letter-spacing: 2px;
+  margin: 1rem 0;
+  color: #2c3e50;
+}
+
+.barcode-text {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+@media print {
+  .modal-header button {
+    display: none;
+  }
+  
+  .barcode-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 1200px) {
   .main-content {
     grid-template-columns: 1fr;
+  }
+  
+  .customize-main {
+    grid-template-columns: 1fr;
+  }
+  
+  .barcode-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
